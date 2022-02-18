@@ -24,14 +24,14 @@ namespace prs_server.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<RequestLine>>> GetRequestLines()
         {
-            return await _context.RequestLines.ToListAsync();
+            return await _context.RequestLines.Include(x => x.Product).Include(x => x.Request).ToListAsync();
         }
 
         // GET: api/RequestLines/5
         [HttpGet("{id}")]
         public async Task<ActionResult<RequestLine>> GetRequestLine(int id)
         {
-            var requestLine = await _context.RequestLines.FindAsync(id);
+            var requestLine = await _context.RequestLines.Include(x => x.Product).Include(x => x.Request).SingleOrDefaultAsync();
 
             if (requestLine == null)
             {
@@ -56,6 +56,8 @@ namespace prs_server.Controllers
             try
             {
                 await _context.SaveChangesAsync();
+
+                RecalculateRequestTotal(requestLine.ID);
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -79,6 +81,7 @@ namespace prs_server.Controllers
         {
             _context.RequestLines.Add(requestLine);
             await _context.SaveChangesAsync();
+            RecalculateRequestTotal(requestLine.ID);
 
             return CreatedAtAction("GetRequestLine", new { id = requestLine.ID }, requestLine);
         }
@@ -95,13 +98,26 @@ namespace prs_server.Controllers
 
             _context.RequestLines.Remove(requestLine);
             await _context.SaveChangesAsync();
-
+            RecalculateRequestTotal(requestLine.ID);
             return NoContent();
         }
 
         private bool RequestLineExists(int id)
         {
             return _context.RequestLines.Any(e => e.ID == id);
+        }
+
+        private async void RecalculateRequestTotal(int requestID)
+        {
+            var request = await _context.Requests.FindAsync(requestID);
+            request.Total = (from rl in _context.RequestLines join p in _context.Products
+                             on rl.ProductID equals p.ID
+                             where rl.RequestID == requestID
+                             select new
+                             {
+                                 LineTotal = rl.Quantity * p.Price
+                             }).Sum(x => x.LineTotal);
+            _context.SaveChanges();
         }
     }
 }

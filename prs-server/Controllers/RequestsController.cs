@@ -24,21 +24,78 @@ namespace prs_server.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Request>>> GetRequests()
         {
-            return await _context.Requests.ToListAsync();
+            return await _context.Requests.Include(x => x.User).ToListAsync();
         }
 
         // GET: api/Requests/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Request>> GetRequest(int id)
         {
-            var request = await _context.Requests.FindAsync(id);
-
+            var request = await _context.Requests.Include(x => x.User).Include(x => x.RequestLines).SingleOrDefaultAsync(x => x.ID == id);
             if (request == null)
             {
                 return NotFound();
             }
 
             return request;
+        }
+
+        // GET api/Requests/5/review
+        [HttpGet("{id}")]
+        public async Task<ActionResult<IEnumerable<Request>>> GetReviews(int id)
+        {
+            var reviews = await _context.Requests.Where(x => x.Status == "REVIEW" && x.UserID != id).Include(x => x.User).Include(x => x.RequestLines).ToListAsync();
+            return reviews;
+        }
+
+        // PUT: api/Requests/5/review
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Review(int id)
+        {
+            Request request = await _context.Requests.FindAsync(id);
+            if (request == null)
+            {
+                return NotFound();
+            }
+            if(request.Total <= 50)
+            {
+                request.Status = "APPROVED";
+            }
+            else
+            {
+                request.Status = "REVIEW";
+            }
+
+            _context.SaveChanges();
+            return NoContent();
+        }
+
+        // PUT: api/Requests/5/approve
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Approve(int id)
+        {
+            Request request = await _context.Requests.FindAsync(id);
+            if(request == null)
+            {
+                return NotFound();
+            }
+            request.Status = "APPROVED";
+            _context.SaveChanges();
+            return NoContent();
+        }
+
+        // PUT: api/Requests/5/reject
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Reject(int id)
+        {
+            Request request = await _context.Requests.FindAsync(id);
+            if (request == null)
+            {
+                return NotFound();
+            }
+            request.Status = "REJECTED";
+            _context.SaveChanges();
+            return NoContent();
         }
 
         // PUT: api/Requests/5
