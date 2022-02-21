@@ -112,7 +112,7 @@ namespace prs_server.Controllers
             var request = await _context.Requests.FindAsync(requestID);
             request.Total = (from rl in _context.RequestLines join p in _context.Products
                              on rl.ProductID equals p.ID
-                             where rl.ID == requestID
+                             where rl.RequestID == requestID
                              select new
                              {
                                  LineTotal = rl.Quantity * p.Price

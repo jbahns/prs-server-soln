@@ -31,7 +31,8 @@ namespace prs_server.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<Request>> GetRequest(int id)
         {
-            var request = await _context.Requests.Include(x => x.User).Include(x => x.RequestLines).SingleOrDefaultAsync(x => x.ID == id);
+            var request = await _context.Requests.Include(x => x.User).Include(x => x.RequestLines)
+                .SingleOrDefaultAsync(x => x.ID == id);
             if (request == null)
             {
                 return NotFound();
@@ -44,7 +45,8 @@ namespace prs_server.Controllers
         [HttpGet("review/{userID}")]
         public async Task<ActionResult<IEnumerable<Request>>> GetReviews(int userID)
         {
-            var reviews = await _context.Requests.Where(x => x.Status == "REVIEW" && x.UserID != userID).Include(x => x.User).Include(x => x.RequestLines).ToListAsync();
+            var reviews = await _context.Requests.Where(x => x.Status == "REVIEW" && x.UserID != userID)
+                .Include(x => x.User).Include(x => x.RequestLines).ToListAsync();
             return reviews;
         }
 
