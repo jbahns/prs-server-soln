@@ -20,14 +20,14 @@ namespace prs_server.Controllers
             _context = context;
         }
 
-        // GET: api/Requests
+        // GET: api/requests
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Request>>> GetRequests()
         {
             return await _context.Requests.Include(x => x.User).ToListAsync();
         }
-
-        // GET: api/Requests/5
+        
+        // GET: api/requests/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Request>> GetRequest(int id)
         {
@@ -39,24 +39,29 @@ namespace prs_server.Controllers
 
             return request;
         }
-
-        // GET api/Requests/5/review
-        [HttpGet("{id}")]
-        public async Task<ActionResult<IEnumerable<Request>>> GetReviews(int id)
+        
+        // GET api/requests/review/5
+        [HttpGet("review/{userID}")]
+        public async Task<ActionResult<IEnumerable<Request>>> GetReviews(int userID)
         {
-            var reviews = await _context.Requests.Where(x => x.Status == "REVIEW" && x.UserID != id).Include(x => x.User).Include(x => x.RequestLines).ToListAsync();
+            var reviews = await _context.Requests.Where(x => x.Status == "REVIEW" && x.UserID != userID).Include(x => x.User).Include(x => x.RequestLines).ToListAsync();
             return reviews;
         }
 
-        // PUT: api/Requests/5/review
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Review(int id)
+        // PUT: api/requests/5/review
+        [HttpPut("{id}/review")]
+        public async Task<IActionResult> Review(int id, Request request)
         {
-            Request request = await _context.Requests.FindAsync(id);
-            if (request == null)
+            if (id != request.ID)
+            {
+                return BadRequest();
+            }
+
+            if (!RequestExists(request.ID))
             {
                 return NotFound();
             }
+
             if(request.Total <= 50)
             {
                 request.Status = "APPROVED";
@@ -66,39 +71,57 @@ namespace prs_server.Controllers
                 request.Status = "REVIEW";
             }
 
-            _context.SaveChanges();
+            await PutRequest(id, request);
+
+            await _context.SaveChangesAsync();
             return NoContent();
         }
 
-        // PUT: api/Requests/5/approve
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Approve(int id)
+        // PUT: api/requests/5/approve
+        [HttpPut("{id}/approve")]
+        public async Task<IActionResult> Approve(int id, Request request)
         {
-            Request request = await _context.Requests.FindAsync(id);
-            if(request == null)
+            if (id != request.ID)
+            {
+                return BadRequest();
+            }
+
+            if (!RequestExists(request.ID))
             {
                 return NotFound();
             }
             request.Status = "APPROVED";
-            _context.SaveChanges();
+
+            await PutRequest(id, request);
+
+            await _context.SaveChangesAsync();
             return NoContent();
         }
 
-        // PUT: api/Requests/5/reject
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Reject(int id)
+        // PUT: api/requests/5/reject
+        [HttpPut("{id}/reject")]
+        public async Task<IActionResult> Reject(int id, Request request)
         {
-            Request request = await _context.Requests.FindAsync(id);
-            if (request == null)
+            if (id != request.ID)
+            {
+                return BadRequest();
+            }
+
+            if (!RequestExists(request.ID))
             {
                 return NotFound();
             }
             request.Status = "REJECTED";
-            _context.SaveChanges();
+
+            await PutRequest(id, request);
+
+            await _context.SaveChangesAsync();
             return NoContent();
         }
 
-        // PUT: api/Requests/5
+
+
+        // PUT: api/requests/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutRequest(int id, Request request)
@@ -129,7 +152,7 @@ namespace prs_server.Controllers
             return NoContent();
         }
 
-        // POST: api/Requests
+        // POST: api/requests
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<Request>> PostRequest(Request request)
@@ -140,7 +163,7 @@ namespace prs_server.Controllers
             return CreatedAtAction("GetRequest", new { id = request.ID }, request);
         }
 
-        // DELETE: api/Requests/5
+        // DELETE: api/requests/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteRequest(int id)
         {
@@ -160,5 +183,6 @@ namespace prs_server.Controllers
         {
             return _context.Requests.Any(e => e.ID == id);
         }
+        
     }
 }
