@@ -98,10 +98,132 @@ namespace prs_server.Controllers
 
             return NoContent();
         }
-
+        
         private bool VendorExists(int id)
         {
             return _context.Vendors.Any(e => e.ID == id);
         }
+
+        // GET: api/vendors/po/5
+        [HttpGet("po/{vendorID}")]
+        public async Task<ActionResult<Po>> CreatePO(int vendorID)
+        {
+            
+            Po po = new Po();
+            po.Vendor = await _context.Vendors.FindAsync(vendorID);
+
+            var qResult = (
+                      (from v in _context.Vendors
+                       join p in _context.Products
+                       on v.ID equals p.VendorID
+                       join l in _context.RequestLines
+                       on p.ID equals l.ProductID
+                       join r in _context.Requests
+                       on l.RequestID equals r.ID
+                       where r.Status == "APPROVED"
+                       && v.ID == vendorID
+                       select new
+                       {
+                           p.ID,
+                           Product = p.Name,
+                           l.Quantity,
+                           p.Price,
+                           LineTotal = p.Price * l.Quantity
+                       })) ;
+
+            var sortedLines = new SortedList<int, Poline>();
+            foreach(var line in qResult)
+            {
+                if (!sortedLines.ContainsKey(line.ID))
+                {
+                    var poline = new Poline()
+                    {
+                        Product = line.Product,
+                        Quantity = 0,
+                        Price = line.Price,
+                        LineTotal = line.LineTotal
+                    };
+                    sortedLines.Add(line.ID, poline);
+                }
+                sortedLines[line.ID].Quantity += line.Quantity;
+            };
+
+            po.Polines = sortedLines.Values;
+            po.PoTotal = po.Polines.Sum(x => x.LineTotal);
+
+            //Po po = new Po(vendor, polines, poTotal);
+
+
+            /*
+            Vendor vendor = await _context.Vendors.FindAsync(vendorID);
+            IEnumerable<Product> products = _context.Products.Where(x => x.VendorID == vendor.ID);
+            IEnumerable<RequestLine> requestLines = (IEnumerable<RequestLine>)(from rl in _context.RequestLines
+                                                    join p in products
+                                                    on rl.ProductID equals p.ID
+                                                    select new
+                                                    {
+                                                        rl.ID,
+                                                        rl.ProductID,
+                                                        rl.RequestID,
+                                                        rl.Quantity
+                                                    }).ToListAsync();
+            IEnumerable<Request> requests = (IEnumerable<Request>)(
+                                            from r in _context.Requests
+                                            join rl in _context.RequestLines
+                                            on r.ID equals rl.RequestID
+                                            where r.Status == "APPROVED"
+                                            select new
+                                            {
+                                                r.ID,
+                                            }).ToListAsync();
+
+
+            var purchaseOrder = (from v in _context.Vendors
+                                 join p in _context.Products
+                                 on v.ID equals p.VendorID
+                                 join rl in _context.RequestLines
+                                 on p.ID equals rl.ProductID
+                                 join r in _context.Requests
+                                 on rl.ProductID equals r.ID
+
+                                 where r.Status == "APPROVED"
+
+                                 select new
+                                 {
+                                     v.ID,
+                                     v.Name,
+                                     ProductID = p.ID,
+                                     PartNumber = p.PartNbr,
+                                     ProductName = p.Name,
+                                     p.Price,
+                                     rl.Quantity
+                                 });
+               
+            var purchaseOrder = (from r in _context.Requests
+                                 join rl in _context.RequestLines
+                                 on r.ID equals rl.RequestID
+                                 join p in _context.Products
+                                 on rl.ProductID equals p.ID
+                                 join v in _context.Vendors
+                                 on p.VendorID equals v.ID
+
+                                 where r.Status == "APPROVED"
+
+                                 select new
+                                 {
+                                     v.ID,
+                                     v.Name,
+                                     ProductID = p.ID,
+                                     PartNumber = p.PartNbr,
+                                     ProductName = p.Name,
+                                     p.Price,
+                                     rl.Quantity
+                                 });
+            */
+
+            return po;
+        }
+
+
     }
 }
